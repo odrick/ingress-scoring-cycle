@@ -1,0 +1,253 @@
+<html>
+
+<head>
+
+<title>Ingress scoring cycle</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+
+<script>
+
+window.onload = init;
+
+var EPOCH = 1389150000000;
+var CYCLE_LENGTH = 630000000;
+var CHECKPOINT_LENGTH = 18000000;
+var cycle;
+var currentCycle;
+
+function init() {
+    if (!cycle) {
+        cycle = currentCycle = Math.floor((new Date().getTime() - EPOCH) / CYCLE_LENGTH);
+    }
+
+    showCycle(0);
+    tick();
+}
+
+function showCycle(delta) {
+    cycle += delta;
+
+    var data = calcCycle(cycle);
+
+    document.querySelector('#title').innerHTML = data.cycle;
+
+    var dates = {};
+
+    for(var i=0; i<data.checkpoints.length; i++) {
+        var checkpoint = data.checkpoints[i];
+        var day = checkpoint.date;
+        
+        if(!dates[day]) dates[day] = {name: checkpoint.nameOfDay, checkpoints: []};
+
+        dates[day].checkpoints.push(checkpoint);
+    }
+
+    var rows = [];
+
+    var keys = Object.keys(dates);
+
+    for(var i=0; i<keys.length; i++) {
+        var item = dates[keys[i]];
+        var row = [];
+        row.push('<td class="date">' + keys[i] + '</td>');
+        row.push('<td>' + item.name + '</td>');
+
+        for(var j=0; j<5; j++) {
+            row.push('<td>&nbsp;</td>');
+        }
+
+        for(var j=0; j<item.checkpoints.length; j++) {
+            var ix = Math.floor(item.checkpoints[j].hour/5) + 2;
+            row[ix] = '<td class="' + item.checkpoints[j].classes + '">' + item.checkpoints[j].time + '</td>';
+        }
+
+        rows.push(row);
+    }
+
+    var html = '';
+    for(var i=0; i<rows.length; i++) {
+        html += '<tr>' + rows[i].join('') + '</tr>'
+    }
+
+    document.querySelector('#view').innerHTML = html;
+}
+
+function calcCycle(cycle) {
+    var start = new Date();
+    var now = start.getTime();
+    var year = formatDate(start, 'YYYY');
+    var cycleDisplay = cycle+1;
+    start.setTime(EPOCH + (cycle * CYCLE_LENGTH));
+    year = formatDate(start, 'YYYY');
+    start.setTime(start.getTime()+CHECKPOINT_LENGTH);
+    var checkpoints = [];
+    for (var i=0; i<35; i++) {
+        var next = isNext(start, now);
+        checkpoints.push({
+            date: formatDate(start, 'DD.MM.YYYY'),
+            time: formatDate(start, 'HH:mm'),
+            hour: start.getHours(),
+            nameOfDay: formatDate(start, 'dddd'),
+            classes: (next ? 'next' : (start.getTime() < now ? 'past' : 'upcoming')) + (i==34 ? ' final' : ''),
+            next: next
+        });
+
+        if(formatDate(start, 'HH:mm') === '00:00') {
+            var last = checkpoints.pop();
+
+            var prevDay = new Date(start.getTime() - 60000);
+
+            checkpoints.push({
+                date: formatDate(prevDay, 'DD.MM.YYYY'),
+                time: last.time,
+                hour: 24,
+                nameOfDay: formatDate(prevDay, 'dddd'),
+                classes: last.classes,
+                next: last.next
+            });
+
+            checkpoints.push(last);
+        }
+
+        start.setTime(start.getTime()+CHECKPOINT_LENGTH);
+    }
+
+    if (year > 2014) {
+        var yearEnd = new Date(year-1, 11, 31, 23, 59);
+        var lastCycle = Math.floor((yearEnd.getTime() - EPOCH) / CYCLE_LENGTH);
+        cycleDisplay = cycle - lastCycle;
+    }
+
+    if (cycleDisplay < 10) {
+        cycleDisplay = '0'+cycleDisplay;
+    }
+    
+    return {cycle: year+'.'+(cycleDisplay), checkpoints:checkpoints, current:(cycle == currentCycle)};
+}
+
+function isNext(start, now) {
+    return (start.getTime() > now && (now + CHECKPOINT_LENGTH) > start.getTime());
+}
+
+function formatDate(date, format) {
+    return moment(date).format(format);
+}
+
+function tick() {
+    showCycle(0);
+}
+window.setInterval(tick, 1000);
+
+</script>
+
+<style>
+    document, body, td {
+        font-family: -apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+        font-size: 14px;
+    }
+
+    main {
+        width: 100%;
+        text-align: center;
+    }
+
+    .wrapper {
+        margin: auto;
+        width: 600px;
+        text-align: center;
+    }
+
+    #view {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    td {
+        border: 1px solid #333;
+        padding: 2px;
+    }
+
+    .title {
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-top: 1px solid #333;
+        border-left: 1px solid #333;
+        border-right: 1px solid #333;
+    }
+
+    .next {
+        text-align: right;
+        background-color: #9999ff;
+        font-weight: bold;
+    }
+
+    .past {
+        text-align: right;
+        background-color: #bbb;
+    }
+
+    .upcoming {
+        text-align: right;
+    }
+
+    .final {
+        text-align: right;
+        background-color: #ff9999;
+    }
+
+    #prev {
+        float: left;
+        padding-top: 2px;
+        padding-left: 12px;
+    }
+
+    #next {
+        float: right;
+        padding-top: 2px;
+        padding-right: 12px;
+    }
+
+    #title {
+        display: inline-block;
+    }
+
+    a {
+        text-decoration: none;
+        color: beige;
+        font-size: 12px;
+    }
+
+    h1 {
+        margin: auto;
+    }
+
+    .date {
+        font-weight: bold;
+    }
+</style>
+
+</head>
+
+<body>
+
+<div class="main">
+    <div class="wrapper">
+        <h2>Ingress scoring cycle</h2>
+
+        <div class="title">
+            <div id="prev"><a href="#" onclick="showCycle(-1);return false;">PREV</a></div>
+            <div id="title"></div>
+            <div id="next"><a href="#" onclick="showCycle(1);return false;">NEXT</a></div>
+        </div>
+        <div>
+            <table id="view">
+            </table>
+        </div>
+    </div>
+</div>
+
+</body>
+
+</html>
