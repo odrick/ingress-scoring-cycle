@@ -29,6 +29,7 @@ var CYCLE_LENGTH = 630000000;
 var CHECKPOINT_LENGTH = 18000000;
 var cycle;
 var currentCycle;
+var displayCycle = -1;
 
 function init() {
     if (!cycle) {
@@ -41,6 +42,10 @@ function init() {
 
 function showCycle(delta) {
     cycle += delta;
+
+    if(displayCycle === cycle) return;
+
+    displayCycle = cycle;
 
     var data = calcCycle(cycle);
 
