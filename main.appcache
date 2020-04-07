@@ -1,6 +1,10 @@
 CACHE MANIFEST
 
 CACHE:
+index.html
+webapp-manifest.json
+webapp-resources/icon192.png
+webapp-resources/icon512.png
 
 NETWORK:
 index.html
